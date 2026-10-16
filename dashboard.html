@@ -1,0 +1,288 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>PlaylistBulkEditor</title>
+<style>
+  :root {
+    --bg: #e4e7eb; --card: #ffffff; --ink: #1f2933; --muted: #6b7785; --line: #e3e7ec;
+    --accent: #3b6df0; --danger: #d92d3a; --danger-bg: #fde3e5; --ok: #1f9d55;
+  }
+  * { box-sizing: border-box; }
+  body { font: 14px/1.45 "Segoe UI", system-ui, sans-serif; margin: 0; padding: 24px; background: var(--bg); color: var(--ink); }
+  .wrap { max-width: 1280px; margin: 0 auto; }
+  header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+  h1 { margin: 0; font-size: 24px; letter-spacing: -.3px; }
+  .sub { color: var(--muted); }
+  .card { background: var(--card); border-radius: 12px; box-shadow: 0 1px 3px rgba(20,30,50,.10), 0 6px 18px rgba(20,30,50,.05); padding: 14px 16px; margin-bottom: 14px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .grow { flex: 1; }
+  input[type=text], input[type=number] { padding: 8px 10px; border: 1px solid #cdd3da; border-radius: 8px; font: inherit; background: #fafbfc; }
+  input[type=text] { width: 260px; }
+  input[type=number] { width: 72px; }
+  button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid #cdd3da; background: #fff; cursor: pointer; transition: .12s; }
+  button:hover { border-color: #9aa5b1; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .danger { background: #fff; border-color: #e7a3a8; color: var(--danger); }
+  .danger:hover { background: var(--danger-bg); border-color: var(--danger); }
+  .solid-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; background: var(--danger-bg); color: var(--danger); }
+  .panel-title { font-weight: 600; margin-right: 6px; }
+
+  /* playlist tabs */
+  .tabs { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .tab { display: inline-flex; gap: 8px; align-items: center; padding: 7px 8px 7px 14px; border-radius: 999px; background: #f3f5f8; border: 1px solid transparent; max-width: 280px; }
+  .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .tab .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tab .n { font-size: 12px; opacity: .75; }
+  .tab .x { width: 20px; height: 20px; line-height: 18px; text-align: center; border-radius: 50%; opacity: .6; }
+  .tab .x:hover { opacity: 1; background: rgba(0,0,0,.15); }
+  #empty { display: none; text-align: center; padding: 40px 16px; }
+  #empty.on { display: block; }
+
+  /* removal progress */
+  #progress { display: none; }
+  #progress.on { display: block; }
+  .bar-outer { height: 10px; background: #e6e9ee; border-radius: 999px; overflow: hidden; flex: 1; min-width: 200px; }
+  .bar-inner { height: 100%; width: 0; background: linear-gradient(90deg, #4f83ff, #3b6df0); transition: width .3s; }
+  .spinner { width: 20px; height: 20px; border: 3px solid #d5dae1; border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; display: none; }
+  .spinner.on { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #confirmBar { display: none; background: var(--danger-bg); border: 1px solid #f1a9ae; }
+  #confirmBar.on { display: block; }
+  #unavPanel, #xferPanel, #splitPanel { display: none; }
+  #unavPanel.on, #xferPanel.on, #splitPanel.on { display: block; }
+  #xferPanel, #splitPanel { border: 1px solid #b9c9f7; background: #f6f8ff; }
+  .field { display: inline-flex; gap: 6px; align-items: center; }
+  select { padding: 8px 10px; border: 1px solid #cdd3da; border-radius: 8px; font: inherit; background: #fafbfc; }
+  #splitBody input[type=text] { width: 100%; min-width: 220px; }
+  .smalltable { max-height: 280px; overflow: auto; margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+  #unavPanel ol { margin: 6px 0 10px 20px; padding: 0; }
+
+  .tablewrap { max-height: 68vh; overflow: auto; border-radius: 12px; }
+  table { border-collapse: collapse; width: 100%; background: var(--card); }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+  th { cursor: pointer; background: #f3f5f8; position: sticky; top: 0; user-select: none; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody tr:hover { background: #f7f9fc; }
+  tr.danger-row, tbody tr.danger-row:hover { background: var(--danger-bg); box-shadow: inset 4px 0 0 var(--danger); }
+  .pct { display: inline-block; height: 6px; background: #e5484d; vertical-align: middle; border-radius: 3px; margin-left: 6px; }
+  a { color: #1d4ed8; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  #scanmsg, #rmstatus { color: var(--muted); }
+
+  .filtergrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; margin-top: 14px; }
+  .fgroup label { display: block; font-weight: 600; margin-bottom: 6px; }
+  .fgroup input[type=date], .fgroup select { padding: 8px 10px; border: 1px solid #cdd3da; border-radius: 8px; font: inherit; background: #fafbfc; }
+  .fgroup input[type=number] { width: 84px; }
+  .fgroup input[type=text] { width: 100%; }
+  .chlist { max-height: 150px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; margin-top: 6px; padding: 4px 8px; background: #fafbfc; }
+  .chlist label { display: flex; gap: 8px; align-items: center; font-weight: 400; margin: 0; padding: 2px 0; cursor: pointer; }
+  .chlist .n { margin-left: auto; color: var(--muted); font-size: 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { padding: 3px 10px; font-size: 12px; border-radius: 999px; background: #eef1f5; border: 1px solid transparent; }
+  .chip:hover { border-color: var(--accent); }
+  .mini { font-size: 12px; display: inline-block; margin-top: 6px; }
+  .sub { color: var(--muted); font-weight: 400; }
+  .footer { position: fixed; right: 14px; bottom: 10px; color: #a3abb5; font-size: 12px; pointer-events: none; user-select: none; z-index: 5; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>PlaylistBulkEditor</h1>
+    <span class="sub" id="count"></span>
+    <span class="sub" id="scanned"></span>
+    <span class="grow"></span>
+    <button id="rescan" class="primary">Rescan list</button>
+    <span id="scanmsg"></span>
+  </header>
+
+  <div class="card">
+    <div class="tabs" id="tabs"></div>
+    <div class="row" style="margin-top:10px">
+      <button id="addPl">+ Add the playlist open on YouTube</button>
+      <span class="sub">or paste a link / ID:</span>
+      <input type="text" id="addUrl" placeholder="https://www.youtube.com/playlist?list=… or WL">
+      <button id="addUrlBtn">Add</button>
+    </div>
+  </div>
+
+  <div class="card" id="empty">
+    <b>No playlist added yet.</b>
+    <p class="sub">Open a playlist (or Watch Later) on youtube.com, then press “+ Add the playlist open on YouTube”.</p>
+  </div>
+
+  <div id="workspace">
+    <div class="card">
+      <div class="row">
+        <input type="text" id="q" placeholder="Name contains…">
+        <span id="activeFilters" class="sub"></span>
+        <span class="grow"></span>
+        <button id="clearFilters">Clear filters</button>
+        <button id="csv">Export CSV</button>
+        <button id="json">Export JSON</button>
+      </div>
+      <div class="filtergrid">
+        <div class="fgroup">
+          <label>Channel <span class="sub" id="chSelected"></span></label>
+          <input type="text" id="chSearch" placeholder="Find channel…">
+          <div id="chList" class="chlist"></div>
+          <a href="#" id="chClear" class="mini">Clear channel selection</a>
+        </div>
+        <div class="fgroup">
+          <label>Uploaded</label>
+          <div class="row"><input type="date" id="upFrom"> <span>to</span> <input type="date" id="upTo"></div>
+          <div class="chips" id="upChips"></div>
+        </div>
+        <div class="fgroup">
+          <label>Duration (minutes)</label>
+          <div class="row"><input type="number" id="dMin" min="0" placeholder="min"> <span>to</span> <input type="number" id="dMax" min="0" placeholder="max"></div>
+          <div class="chips" id="durChips"></div>
+        </div>
+        <div class="fgroup">
+          <label>Watched (%)</label>
+          <div class="row"><input type="number" id="wMin" min="0" max="100" placeholder="min"> <span>to</span> <input type="number" id="wMax" min="0" max="100" placeholder="max"></div>
+          <div class="chips" id="wChips"></div>
+        </div>
+        <div class="fgroup">
+          <label>Status</label>
+          <select id="statusSel">
+            <option value="all">All videos</option>
+            <option value="available">Available only</option>
+            <option value="unavailable">Unavailable / deleted only</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <span class="panel-title">Organize</span>
+        <button id="mvBtn" class="primary">Move selected…</button>
+        <button id="cpBtn">Copy selected…</button>
+        <button id="splitBtn">Split into new playlists…</button>
+        <span class="sub">Tick videos below (or apply a filter), then move or copy them. Moving adds to the target first, then removes here.</span>
+      </div>
+    </div>
+
+    <div class="card" id="xferPanel">
+      <div class="panel-title" id="xferTitle">Move selected videos</div>
+      <div class="row">
+        <label class="field">Target <select id="xferTarget"></select></label>
+        <input type="text" id="xferName" placeholder="New playlist name">
+        <label class="field" id="xferPrivacyWrap">Privacy
+          <select id="xferPrivacy">
+            <option value="PRIVATE">Private</option>
+            <option value="UNLISTED">Unlisted</option>
+            <option value="PUBLIC">Public</option>
+          </select>
+        </label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <span id="xferSummary" class="grow"></span>
+        <button id="xferGo" class="primary">Continue…</button>
+        <button id="xferClose">Close</button>
+      </div>
+    </div>
+
+    <div class="card" id="splitPanel">
+      <div class="panel-title">Split into new playlists</div>
+      <div class="row">
+        <label class="field">Group by
+          <select id="splitBy">
+            <option value="channel">Channel</option>
+            <option value="year">Upload year</option>
+            <option value="duration">Duration</option>
+            <option value="watched">Watch status</option>
+            <option value="chunks">Fixed-size parts</option>
+          </select>
+        </label>
+        <label class="field"><span id="splitNLabel">Min videos per channel</span> <input type="number" id="splitN" min="1" value="5"></label>
+        <label class="field">Mode
+          <select id="splitMode"><option value="move">Move</option><option value="copy">Copy</option></select>
+        </label>
+        <label class="field">Privacy
+          <select id="splitPrivacy">
+            <option value="PRIVATE">Private</option>
+            <option value="UNLISTED">Unlisted</option>
+            <option value="PUBLIC">Public</option>
+          </select>
+        </label>
+        <label class="field">Name prefix <input type="text" id="splitPrefix"></label>
+      </div>
+      <div class="sub" id="splitScope" style="margin-top:8px"></div>
+      <div class="smalltable">
+        <table>
+          <thead><tr><th><input type="checkbox" id="splitAll" checked></th><th>New playlist name (editable)</th><th class="num">Videos</th></tr></thead>
+          <tbody id="splitBody"></tbody>
+        </table>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <span id="splitSummary" class="grow"></span>
+        <button id="splitGo" class="primary">Create playlists…</button>
+        <button id="splitClose">Close</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <span class="panel-title">Remove from this playlist</span>
+        <button id="rm5" class="danger">Remove the first 5</button>
+        <button id="rmall" class="danger">Remove selected (0)</button>
+        <button id="unavBtn" class="danger">Remove unavailable &amp; deleted videos</button>
+        <span class="grow"></span>
+        <button id="delBtn">Deleted videos (<span id="delCount">0</span>)</button>
+        <button id="exportDel">Export deleted list</button>
+      </div>
+    </div>
+
+    <div class="card" id="confirmBar">
+      <div class="row">
+        <span id="confirmText" class="grow"></span>
+        <button id="confirmYes" class="solid-danger">Yes, remove</button>
+        <button id="confirmNo">Cancel</button>
+      </div>
+    </div>
+
+    <div class="card" id="unavPanel">
+      <div class="panel-title">Remove unavailable &amp; deleted videos</div>
+      <ol>
+        <li>Open this playlist on YouTube in a tab.</li>
+        <li>Click the <b>⋮</b> (more) menu near the top of the playlist and choose <b>Show unavailable videos</b>.</li>
+        <li>Come back here and press <b>Rescan list</b>. Unavailable entries will be tagged below.</li>
+      </ol>
+      <div class="row">
+        <span id="unavCount"></span>
+        <span class="grow"></span>
+        <button id="unavRescan" class="primary">Rescan list</button>
+        <button id="unavRemove" class="danger">Remove unavailable videos…</button>
+        <button id="unavClose">Close</button>
+      </div>
+    </div>
+
+    <div class="card" id="progress">
+      <div class="row">
+        <span class="spinner" id="spinner"></span>
+        <div class="bar-outer"><div class="bar-inner" id="barFill"></div></div>
+        <span id="rmstatus"></span>
+        <button id="stop" class="solid-danger">Stop</button>
+      </div>
+    </div>
+
+    <div class="tablewrap" id="mainView">
+      <table>
+        <thead><tr id="head"></tr></thead>
+        <tbody id="body"></tbody>
+      </table>
+    </div>
+
+    <div class="tablewrap" id="deletedView" style="display:none">
+      <table>
+        <thead><tr><th>Title</th><th>Channel</th><th class="num">Watched</th><th>Removed at</th><th>Moved to</th></tr></thead>
+        <tbody id="delBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<div class="footer">krmrbtn - 2026</div>
+<script src="dashboard.js"></script>
