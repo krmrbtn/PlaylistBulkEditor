@@ -1,0 +1,15 @@
+# build output
+dist/
+
+# personal exports must never be committed
+*.csv
+*.json
+!manifest.json
+probe-log*
+watch-later*
+*-deleted.*
+
+# OS / editor
+Thumbs.db
+.DS_Store
+.vscode/
